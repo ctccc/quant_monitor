@@ -9,7 +9,10 @@
     python scripts/check_datasources.py --only em  # 只查东财 (em/tencent/sina/akshare)
 
 依赖: requests (必需), akshare (可选，缺失时跳过对应检查)
+兼容: Python 3.9+
 """
+
+from __future__ import annotations
 
 import argparse
 import datetime as dt
