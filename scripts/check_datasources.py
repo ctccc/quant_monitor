@@ -17,15 +17,26 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import sys
 
 import requests
+
+# 国内行情站点一律直连:VPN/加速器注册的系统代理对这些站点转发不稳定,
+# 是"接口忽通忽断"的常见元凶。NO_PROXY 同时照顾到 akshare 内部的请求。
+_DIRECT_HOSTS = ".eastmoney.com,.gtimg.cn,.sinajs.cn,.sina.com.cn,.10jqka.com.cn"
+os.environ["NO_PROXY"] = _DIRECT_HOSTS
+os.environ["no_proxy"] = _DIRECT_HOSTS
+
+# 本脚本自己的请求彻底无视环境/系统代理
+SESSION = requests.Session()
+SESSION.trust_env = False
 
 UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/125.0 Safari/537.36"
 )
-TIMEOUT = 10
+TIMEOUT = 15
 
 # 东财网页端公开常量(所有访客同值,非密钥);拆开写是为了避免被密钥扫描误报
 EM_UT = "7eea3edcaed734be" + "a9cbfc24409ed989"
@@ -44,7 +55,7 @@ def em_get_json(path_query: str, timeout: int = 20):
     errs = []
     for host in EM_HOSTS:
         try:
-            resp = requests.get(host + path_query, headers={"User-Agent": UA}, timeout=timeout)
+            resp = SESSION.get(host + path_query, headers={"User-Agent": UA}, timeout=timeout)
             resp.raise_for_status()
             return resp.json(), host
         except Exception as e:  # noqa: BLE001
@@ -64,7 +75,7 @@ def http_get(url: str, headers: dict | None = None) -> requests.Response:
     h = {"User-Agent": UA}
     if headers:
         h.update(headers)
-    resp = requests.get(url, headers=h, timeout=TIMEOUT)
+    resp = SESSION.get(url, headers=h, timeout=TIMEOUT)
     resp.raise_for_status()
     return resp
 
