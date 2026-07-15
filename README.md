@@ -12,6 +12,7 @@
 | [docs/PLAN.md](docs/PLAN.md) | 需求拆解、功能清单（P0–P4）、里程碑路线图、风险对策 |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 技术架构、选型理由、数据接入层设计、目录规划 |
 | [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | 免费数据源调研、接口清单、功能↔数据映射、能力边界 |
+| [docs/AI_LAYER.md](docs/AI_LAYER.md) | AI 参谋层：LLM 快慢分层设计、防幻觉铁律、模型接入（融合 trading agent 思路） |
 
 ## 快速开始（当前阶段：M0 之前的数据源验证）
 
