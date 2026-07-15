@@ -30,6 +30,27 @@ TIMEOUT = 10
 # 东财网页端公开常量(所有访客同值,非密钥);拆开写是为了避免被密钥扫描误报
 EM_UT = "7eea3edcaed734be" + "a9cbfc24409ed989"
 
+# 板块类请求在主域名上可能被重定向到慢速的 push2delay 集群导致超时,
+# 依次尝试这些镜像主机(编号镜像与主域名数据相同)
+EM_HOSTS = [
+    "https://17.push2.eastmoney.com",
+    "https://push2.eastmoney.com",
+    "https://90.push2.eastmoney.com",
+]
+
+
+def em_get_json(path_query: str, timeout: int = 20):
+    """依次尝试东财各镜像主机,返回 (json数据, 成功的主机)。全部失败则抛出汇总错误。"""
+    errs = []
+    for host in EM_HOSTS:
+        try:
+            resp = requests.get(host + path_query, headers={"User-Agent": UA}, timeout=timeout)
+            resp.raise_for_status()
+            return resp.json(), host
+        except Exception as e:  # noqa: BLE001
+            errs.append(f"{host} -> {type(e).__name__}")
+    raise RuntimeError("全部镜像失败: " + " | ".join(errs))
+
 results = []  # (分组, 检查项, 是否通过, 说明)
 
 
@@ -74,33 +95,31 @@ def check_eastmoney():
     except Exception as e:  # noqa: BLE001
         record("东财", "全市场快照 clist", False, repr(e))
 
-    # 2. 行业板块 + 资金流
+    # 2. 行业板块 + 资金流(走镜像主机,避开 push2delay 慢集群)
     try:
-        url = (
-            "https://push2.eastmoney.com/api/qt/clist/get"
-            "?pn=1&pz=10&po=1&np=1&fltt=2&invt=2&fid=f62"
+        data, host = em_get_json(
+            "/api/qt/clist/get?pn=1&pz=10&po=1&np=1&fltt=2&invt=2&fid=f62"
             "&fs=m:90+t:2&fields=f12,f14,f3,f62,f184"
         )
-        rows = (http_get(url).json().get("data") or {}).get("diff") or []
+        rows = (data.get("data") or {}).get("diff") or []
         assert rows and rows[0].get("f62") is not None, "缺少主力净流入字段 f62"
         top = rows[0]
         record(
             "东财", "行业板块资金流", True,
-            f"净流入第一: {top.get('f14')} f62={top.get('f62')}",
+            f"净流入第一: {top.get('f14')} f62={top.get('f62')} (via {host})",
         )
     except Exception as e:  # noqa: BLE001
         record("东财", "行业板块资金流", False, repr(e))
 
-    # 3. 概念板块
+    # 3. 概念板块(走镜像主机)
     try:
-        url = (
-            "https://push2.eastmoney.com/api/qt/clist/get"
-            "?pn=1&pz=5&po=1&np=1&fltt=2&invt=2&fid=f3"
+        data, host = em_get_json(
+            "/api/qt/clist/get?pn=1&pz=5&po=1&np=1&fltt=2&invt=2&fid=f3"
             "&fs=m:90+t:3&fields=f12,f14,f3"
         )
-        rows = (http_get(url).json().get("data") or {}).get("diff") or []
+        rows = (data.get("data") or {}).get("diff") or []
         assert rows, "概念板块返回为空"
-        record("东财", "概念板块列表", True, f"样本: {rows[0].get('f14')}")
+        record("东财", "概念板块列表", True, f"样本: {rows[0].get('f14')} (via {host})")
     except Exception as e:  # noqa: BLE001
         record("东财", "概念板块列表", False, repr(e))
 
