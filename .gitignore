@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 本地数据与笔记
+data/
+notes/
+
+# IDE
+.idea/
+.vscode/
