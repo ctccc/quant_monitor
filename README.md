@@ -14,24 +14,32 @@
 | [docs/DATA_SOURCES.md](docs/DATA_SOURCES.md) | 免费数据源调研、接口清单、功能↔数据映射、能力边界 |
 | [docs/AI_LAYER.md](docs/AI_LAYER.md) | AI 参谋层：LLM 快慢分层设计、防幻觉铁律、模型接入（融合 trading agent 思路） |
 
-## 快速开始（当前阶段：M0 之前的数据源验证）
+## 快速开始
 
 ```bash
-pip install -r requirements.txt
-python scripts/check_datasources.py
+python3 -m pip install -r requirements.txt   # 首次或依赖更新时
+python3 -m quant_monitor                     # 启动看板
 ```
 
-体检脚本会逐一验证东财/腾讯/新浪/akshare 各接口并输出 ✅/❌ 汇总。
-把结果反馈给协作 AI，即可开工里程碑 M0（项目地基）。
+浏览器打开 **http://127.0.0.1:8000**，点右上角「立即归档今日数据」抓取当日
+涨停池与板块资金流。交易日 15:10 调度器也会自动归档（应用需处于运行状态）。
+
+其他命令：
+
+```bash
+python3 -m quant_monitor archive       # 不开看板,只执行一次归档
+python3 scripts/check_datasources.py   # 数据源体检(接口异常时先跑这个)
+```
 
 ## 当前进度
 
-- [x] 规划：任务拆解 / 技术路线 / 数据源方案
-- [x] 数据源体检脚本
-- [ ] M0 地基：数据接入层 + 调度器 + 存储 + Web 骨架
-- [ ] M1 盘后复盘
+- [x] 规划：任务拆解 / 技术路线 / 数据源方案 / AI 参谋层设计
+- [x] 数据源体检脚本（用户实测 12/12 通过）
+- [x] M0 地基：数据接入层（直连+镜像轮换+限速）/ SQLite 存储 / 调度器 / 看板骨架
+- [ ] M1 盘后复盘：情绪面板 / 连板梯队 / 资金流转 / 复盘笔记
 - [ ] M2 盘前简报
 - [ ] M3 盘中实时监控与异动警报
+- [ ] M5 AI 参谋层
 
 ## 历史代码
 

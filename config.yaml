@@ -1,0 +1,14 @@
+# Quant Monitor 配置。所有项都有内置默认值,不需要的段落可以删掉。
+
+web:
+  host: 127.0.0.1
+  port: 8000
+
+datasource:
+  timeout: 15      # 单请求超时(秒)
+  max_per_sec: 5   # 全局限速:每秒最多对外请求数
+  retries: 1       # 失败重试次数
+
+archive:
+  hour: 15         # 交易日盘后自动归档触发时间(北京时间)
+  minute: 10
