@@ -213,17 +213,19 @@ $("archive-btn").addEventListener("click", async () => {
   btn.disabled = true;
   $("msg").textContent = "抓取中,约需十几秒…";
   $("msg").className = "";
+  let msg = "", isErr = false;
   try {
     const r = await getJSON("/api/jobs/archive", { method: "POST" });
-    $("msg").textContent = `归档完成: ${r.date} ` +
+    msg = `归档完成: ${r.date} ` +
       Object.entries(r.steps).map(([k, v]) => `${k}=${v}`).join(" ");
-    await refresh();
   } catch (e) {
-    $("msg").textContent = "归档失败: " + e.message;
-    $("msg").className = "err";
-  } finally {
-    btn.disabled = false;
+    msg = "归档失败(部分数据可能已入库): " + e.message;
+    isErr = true;
   }
+  await refresh();  // 无论成败都刷新:部分成功的数据也要立即显示
+  $("msg").textContent = msg;
+  $("msg").className = isErr ? "err" : "";
+  btn.disabled = false;
 });
 
 refresh();

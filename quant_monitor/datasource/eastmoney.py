@@ -14,21 +14,33 @@ from quant_monitor.datasource.base import SectorFlow, ZtPoolItem, http_get
 # 东财网页端公开常量(所有访客同值,非密钥);拆开写避免密钥扫描误报
 EM_UT = "7eea3edcaed734be" + "a9cbfc24409ed989"
 
-# 板块类请求在主域名可能被重定向到慢速 push2delay 集群,依次尝试镜像主机
+# 板块类请求在主域名可能被重定向到慢速 push2delay 集群,依次尝试镜像主机;
+# 最后一项是慢速兜底(能通但慢,给足超时)。元组第二项为该主机的专用超时(秒)。
 EM_HOSTS = [
-    "https://17.push2.eastmoney.com",
-    "https://push2.eastmoney.com",
-    "https://90.push2.eastmoney.com",
+    ("https://17.push2.eastmoney.com", None),
+    ("https://82.push2.eastmoney.com", None),
+    ("https://push2.eastmoney.com", None),
+    ("https://90.push2.eastmoney.com", None),
+    ("https://push2delay.eastmoney.com", 30.0),
 ]
+
+
+def _root_cause(e: BaseException) -> str:
+    """把 requests 的多层包装剥到底,暴露 DNS 解析失败/连接被拒等真实原因。"""
+    seen = 0
+    while (e.__cause__ or e.__context__) is not None and seen < 10:
+        e = e.__cause__ or e.__context__  # type: ignore[assignment]
+        seen += 1
+    return "{}: {}".format(type(e).__name__, str(e)[:140])
 
 
 def _em_get_json(path_query: str) -> dict:
     errs = []
-    for host in EM_HOSTS:
+    for host, timeout in EM_HOSTS:
         try:
-            return http_get(host + path_query).json()
+            return http_get(host + path_query, timeout=timeout).json()
         except Exception as e:  # noqa: BLE001
-            errs.append("{} -> {}".format(host, type(e).__name__))
+            errs.append("{} -> {}".format(host, _root_cause(e)))
     raise RuntimeError("东财全部镜像失败: " + " | ".join(errs))
 
 
