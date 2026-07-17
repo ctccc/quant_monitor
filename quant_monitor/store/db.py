@@ -11,7 +11,9 @@ import sqlite3
 from typing import List, Optional
 
 from quant_monitor.config import DATA_DIR
-from quant_monitor.datasource.base import SectorFlow, ZtPoolItem
+from quant_monitor.datasource.base import (
+    DtPoolItem, MarketMood, SectorFlow, ZbPoolItem, ZtPoolItem,
+)
 
 DB_PATH = DATA_DIR / "quant.db"
 
@@ -49,6 +51,43 @@ CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
+CREATE TABLE IF NOT EXISTS zb_pool (
+    date        TEXT NOT NULL,
+    code        TEXT NOT NULL,
+    name        TEXT,
+    price       REAL,
+    pct         REAL,
+    first_seal  TEXT,
+    break_times INTEGER,
+    industry    TEXT,
+    fetched_at  TEXT,
+    PRIMARY KEY (date, code)
+);
+CREATE TABLE IF NOT EXISTS dt_pool (
+    date       TEXT NOT NULL,
+    code       TEXT NOT NULL,
+    name       TEXT,
+    price      REAL,
+    pct        REAL,
+    seal_fund  REAL,
+    days       INTEGER,
+    industry   TEXT,
+    fetched_at TEXT,
+    PRIMARY KEY (date, code)
+);
+CREATE TABLE IF NOT EXISTS market_mood (
+    date        TEXT PRIMARY KEY,
+    up_count    INTEGER,
+    down_count  INTEGER,
+    flat_count  INTEGER,
+    amount      REAL,
+    zt_count    INTEGER,
+    dt_count    INTEGER,
+    zb_count    INTEGER,
+    blast_rate  REAL,
+    max_boards  INTEGER,
+    fetched_at  TEXT
+);
 """
 
 
@@ -84,6 +123,68 @@ def save_sector_flow(items: List[SectorFlow]) -> int:
              for i in items],
         )
     return len(items)
+
+
+def save_zb_pool(items: List[ZbPoolItem]) -> int:
+    now = dt.datetime.now().isoformat(timespec="seconds")
+    with _connect() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO zb_pool VALUES (?,?,?,?,?,?,?,?,?)",
+            [(i.date, i.code, i.name, i.price, i.pct, i.first_seal,
+              i.break_times, i.industry, now) for i in items],
+        )
+    return len(items)
+
+
+def save_dt_pool(items: List[DtPoolItem]) -> int:
+    now = dt.datetime.now().isoformat(timespec="seconds")
+    with _connect() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO dt_pool VALUES (?,?,?,?,?,?,?,?,?)",
+            [(i.date, i.code, i.name, i.price, i.pct, i.seal_fund,
+              i.days, i.industry, now) for i in items],
+        )
+    return len(items)
+
+
+def save_market_mood(m: MarketMood) -> None:
+    now = dt.datetime.now().isoformat(timespec="seconds")
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO market_mood VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            (m.date, m.up_count, m.down_count, m.flat_count, m.amount,
+             m.zt_count, m.dt_count, m.zb_count, m.blast_rate, m.max_boards, now),
+        )
+
+
+def query_mood(days: int = 15) -> List[dict]:
+    """近 N 个有记录的交易日情绪指标,按日期升序返回。"""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM (SELECT * FROM market_mood ORDER BY date DESC LIMIT ?) "
+            "ORDER BY date ASC",
+            (days,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def query_sector_trend(kind: str, days: int = 5) -> List[dict]:
+    """近 N 个有记录交易日的板块主力净流入累计,按累计值降序。"""
+    with _connect() as conn:
+        dates = [r["date"] for r in conn.execute(
+            "SELECT DISTINCT date FROM sector_flow WHERE kind=? "
+            "ORDER BY date DESC LIMIT ?", (kind, days),
+        ).fetchall()]
+        if not dates:
+            return []
+        marks = ",".join("?" for _ in dates)
+        rows = conn.execute(
+            "SELECT code, name, SUM(main_net) AS total_net, COUNT(*) AS days "
+            "FROM sector_flow WHERE kind=? AND date IN ({}) "
+            "GROUP BY code".format(marks),
+            [kind] + dates,
+        ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def save_trade_dates(dates: List[str]) -> None:

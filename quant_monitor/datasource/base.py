@@ -105,3 +105,51 @@ class SectorFlow:
     pct: float           # 板块涨跌幅(%)
     main_net: float      # 主力净流入(元)
     main_pct: float      # 主力净占比(%)
+
+
+@dataclass
+class ZbPoolItem:
+    """炸板池条目（当日曾涨停后开板的股票）。"""
+
+    date: str
+    code: str
+    name: str
+    price: float
+    pct: float           # 当前涨跌幅(%)
+    first_seal: str      # 首次封板时间
+    break_times: int     # 炸板次数
+    industry: str
+
+
+@dataclass
+class DtPoolItem:
+    """跌停池条目。"""
+
+    date: str
+    code: str
+    name: str
+    price: float
+    pct: float
+    seal_fund: float     # 封单资金(元)
+    days: int            # 连续跌停天数
+    industry: str
+
+
+@dataclass
+class MarketMood:
+    """当日市场情绪汇总（复盘核心指标）。
+
+    口径见 docs/PLAN.md §3:
+    炸板率 = 炸板数 / (涨停数 + 炸板数);连板高度 = 当日最高连板数。
+    """
+
+    date: str
+    up_count: int        # 上涨家数
+    down_count: int      # 下跌家数
+    flat_count: int      # 平盘/停牌
+    amount: float        # 两市成交额(元)
+    zt_count: int        # 涨停家数
+    dt_count: int        # 跌停家数
+    zb_count: int        # 炸板家数
+    blast_rate: float    # 炸板率(0~1)
+    max_boards: int      # 连板高度

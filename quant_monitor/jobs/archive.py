@@ -10,6 +10,7 @@ import logging
 from typing import Optional
 
 from quant_monitor.datasource import calendar, eastmoney
+from quant_monitor.datasource.base import MarketMood
 from quant_monitor.store import db
 
 log = logging.getLogger(__name__)
@@ -35,20 +36,56 @@ def run_archive(target: Optional[dt.date] = None) -> dict:
 
     result = {"date": date.isoformat(), "ok": True, "steps": {}, "errors": []}
 
-    try:
-        n = db.save_zt_pool(eastmoney.fetch_zt_pool(date))
-        result["steps"]["zt_pool"] = n
-    except Exception as e:  # noqa: BLE001
-        result["ok"] = False
-        result["errors"].append("涨停池: {!r}".format(e))
-
-    for kind in ("industry", "concept"):
+    def _step(name, fn):
         try:
-            n = db.save_sector_flow(eastmoney.fetch_sector_flow(kind, date))
-            result["steps"]["sector_" + kind] = n
+            result["steps"][name] = fn()
+            return True
         except Exception as e:  # noqa: BLE001
             result["ok"] = False
-            result["errors"].append("板块({}): {!r}".format(kind, e))
+            result["errors"].append("{}: {!r}".format(name, e))
+            return False
+
+    zt_items = []
+    zb_items = []
+
+    def _zt():
+        zt_items.extend(eastmoney.fetch_zt_pool(date))
+        return db.save_zt_pool(zt_items)
+
+    def _zb():
+        zb_items.extend(eastmoney.fetch_zb_pool(date))
+        return db.save_zb_pool(zb_items)
+
+    _step("zt_pool", _zt)
+    _step("zb_pool", _zb)
+    dt_ok = {"n": None}
+
+    def _dt():
+        items = eastmoney.fetch_dt_pool(date)
+        dt_ok["n"] = len(items)
+        return db.save_dt_pool(items)
+
+    _step("dt_pool", _dt)
+    for kind in ("industry", "concept"):
+        _step("sector_" + kind,
+              lambda k=kind: db.save_sector_flow(eastmoney.fetch_sector_flow(k, date)))
+
+    def _mood():
+        up, down, flat, amount = eastmoney.fetch_market_breadth()
+        zt_n, zb_n = len(zt_items), len(zb_items)
+        mood = MarketMood(
+            date=date.isoformat(),
+            up_count=up, down_count=down, flat_count=flat, amount=amount,
+            zt_count=zt_n,
+            dt_count=dt_ok["n"] if dt_ok["n"] is not None else 0,
+            zb_count=zb_n,
+            blast_rate=round(zb_n / (zt_n + zb_n), 4) if (zt_n + zb_n) else 0.0,
+            max_boards=max((i.boards for i in zt_items), default=0),
+        )
+        db.save_market_mood(mood)
+        return "涨{} 跌{} 额{:.0f}亿".format(up, down, amount / 1e8)
+
+    _step("market_mood", _mood)
 
     if result["ok"]:
         db.set_meta("last_archive", dt.datetime.now().isoformat(timespec="seconds"))
