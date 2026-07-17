@@ -7,7 +7,8 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG_PATH = ROOT / "config.yaml"
+CONFIG_PATH = ROOT / "config.yaml"          # 公开模板,进 git
+LOCAL_CONFIG_PATH = ROOT / "config.local.yaml"  # 私有配置(API Key 等),被 gitignore
 DATA_DIR = ROOT / "data"
 
 DEFAULTS = {
@@ -42,11 +43,17 @@ def _merge(base: dict, override: dict) -> dict:
 
 
 def load_config() -> dict:
-    user_cfg = {}
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-            user_cfg = yaml.safe_load(f) or {}
-    return _merge(DEFAULTS, user_cfg)
+    """加载顺序: 内置默认值 ← config.yaml ← config.local.yaml(私有,优先级最高)。
+
+    API Key 等敏感信息务必写在 config.local.yaml —— 它在 .gitignore 里,
+    不会被推到(公开的)git 仓库。
+    """
+    cfg = DEFAULTS
+    for path in (CONFIG_PATH, LOCAL_CONFIG_PATH):
+        if path.exists():
+            with open(path, "r", encoding="utf-8") as f:
+                cfg = _merge(cfg, yaml.safe_load(f) or {})
+    return cfg
 
 
 CONFIG = load_config()

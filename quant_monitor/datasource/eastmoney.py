@@ -185,6 +185,31 @@ def fetch_market_breadth() -> Tuple[int, int, int, float]:
     return up, down, flat, amount
 
 
+def fetch_daily_kline(code: str, start: dt.date, end: dt.date) -> List[dict]:
+    """个股日K(前复权)。返回 [{date, open, close, high, low, pct, turnover}]。"""
+    market = "1" if code.startswith(("6", "9", "5")) else "0"
+    url = (
+        "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+        "?secid={m}.{code}&klt=101&fqt=1&beg={beg:%Y%m%d}&end={end:%Y%m%d}"
+        "&fields1=f1,f2,f3,f4,f5,f6"
+        "&fields2=f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"
+    ).format(m=market, code=code, beg=start, end=end)
+    data = http_get(url).json()
+    klines = (data.get("data") or {}).get("klines") or []
+    out = []
+    for k in klines:
+        p = k.split(",")  # 日期,开,收,高,低,量,额,振幅,涨跌幅,涨跌额,换手
+        if len(p) < 11:
+            continue
+        out.append({
+            "date": p[0],
+            "open": _num(p[1]), "close": _num(p[2]),
+            "high": _num(p[3]), "low": _num(p[4]),
+            "pct": _num(p[8]), "turnover": _num(p[10]),
+        })
+    return out
+
+
 _SECTOR_FS = {"industry": "m:90+t:2", "concept": "m:90+t:3"}
 
 

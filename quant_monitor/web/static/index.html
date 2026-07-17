@@ -236,8 +236,9 @@
 </div>
 
 <section>
-  <h2>AI 复盘摘要 <span class="ai-tag">AI 参谋意见 · 仅供参考</span></h2>
-  <button class="btn" id="ai-gen">生成 AI 复盘摘要</button>
+  <h2>AI 参谋 <span class="ai-tag">AI 参谋意见 · 仅供参考</span></h2>
+  <button class="btn" id="ai-gen">市场复盘摘要</button>
+  <button class="btn" id="ai-trade">交易复盘诊断</button>
   <button class="btn" id="ai-insert" style="display:none">插入到笔记</button>
   <span id="ai-msg" style="font-size:12px;color:var(--text-muted);margin-left:10px"></span>
   <div id="ai-out"></div>
@@ -492,22 +493,24 @@ $("trade-add").addEventListener("click", async () => {
   }
 });
 
-$("ai-gen").addEventListener("click", async () => {
-  const btn = $("ai-gen");
+async function runAI(btnId, url, doneMsg) {
+  const btn = $(btnId);
   btn.disabled = true;
-  $("ai-msg").textContent = "生成中,约需十几秒…";
+  $("ai-msg").textContent = "生成中,需十几秒到半分钟…";
   try {
-    const r = await getJSON("/api/ai/review", { method: "POST" });
+    const r = await getJSON(url, { method: "POST" });
     $("ai-out").textContent = r.content;
     $("ai-out").style.display = "block";
     $("ai-insert").style.display = "inline-block";
-    $("ai-msg").textContent = "基于 " + r.date + " 归档数据生成";
+    $("ai-msg").textContent = doneMsg + (r.date ? "(基于 " + r.date + " 数据)" : "");
   } catch (e) {
     $("ai-msg").textContent = e.message;
   } finally {
     btn.disabled = false;
   }
-});
+}
+$("ai-gen").addEventListener("click", () => runAI("ai-gen", "/api/ai/review", "市场复盘摘要已生成"));
+$("ai-trade").addEventListener("click", () => runAI("ai-trade", "/api/ai/trade-review", "交易复盘诊断已生成"));
 
 $("ai-insert").addEventListener("click", () => {
   const ta = $("note-area");

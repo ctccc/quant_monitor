@@ -13,11 +13,16 @@ archive:
   hour: 15         # 交易日盘后自动归档触发时间(北京时间)
   minute: 10
 
-# AI 复盘摘要(可选)。支持一切 OpenAI 兼容端点:
+# AI 参谋(可选)。支持一切 OpenAI 兼容端点:
 #   DeepSeek: base_url: https://api.deepseek.com      model: deepseek-chat
 #   Qwen:     base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
 #             model: qwen-plus
-# 在下面填入你的 api_key 并把 enabled 改为 true 即可。
+#
+# ⚠️ api_key 不要写在本文件(本文件在公开 git 仓库里)!
+# 在项目根目录新建 config.local.yaml(已被 gitignore),内容示例:
+#   llm:
+#     enabled: true
+#     api_key: "sk-你的密钥"
 llm:
   enabled: false
   base_url: https://api.deepseek.com

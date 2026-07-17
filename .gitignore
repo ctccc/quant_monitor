@@ -7,6 +7,9 @@ venv/
 data/
 notes/
 
+# 私有配置(API Key 等敏感信息),绝不入库
+config.local.yaml
+
 # IDE
 .idea/
 .vscode/

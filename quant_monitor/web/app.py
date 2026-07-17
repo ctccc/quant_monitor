@@ -211,6 +211,28 @@ def save_note(payload: NotePayload) -> JSONResponse:
     return JSONResponse({"date": payload.date, "saved": True})
 
 
+@app.post("/api/ai/trade-review")
+def ai_trade_review() -> JSONResponse:
+    """AI 交易复盘:逐笔诊断 + 期间市场环境归因(同步调用,约需半分钟)。"""
+    from quant_monitor.llm.client import LLMDisabled, llm_enabled
+    from quant_monitor.llm.trade_review import generate_trade_review
+
+    if not llm_enabled():
+        return JSONResponse(
+            {"error": "AI 功能未启用:在 config.yaml 的 llm 段填入 api_key "
+                      "并设 enabled: true,然后重启应用"},
+            status_code=501)
+    try:
+        content = generate_trade_review()
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    except LLMDisabled as e:
+        return JSONResponse({"error": str(e)}, status_code=501)
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": "生成失败: {!r}".format(e)}, status_code=502)
+    return JSONResponse({"content": content})
+
+
 @app.post("/api/jobs/archive")
 def archive_now() -> JSONResponse:
     """手动触发一次盘后归档(同步执行,含全市场扫描约需半分钟)。"""
