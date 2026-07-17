@@ -21,6 +21,13 @@ DEFAULTS = {
         "hour": 15,          # 盘后归档任务触发时间(交易日)
         "minute": 10,
     },
+    "llm": {
+        "enabled": False,    # 填好 api_key 后改 true 即启用 AI 复盘摘要
+        "base_url": "https://api.deepseek.com",  # OpenAI 兼容端点均可
+        "model": "deepseek-chat",
+        "api_key": "",
+        "timeout": 90,
+    },
 }
 
 

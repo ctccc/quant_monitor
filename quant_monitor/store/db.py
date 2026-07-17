@@ -75,6 +75,17 @@ CREATE TABLE IF NOT EXISTS dt_pool (
     fetched_at TEXT,
     PRIMARY KEY (date, code)
 );
+CREATE TABLE IF NOT EXISTS trades (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    date       TEXT NOT NULL,
+    code       TEXT NOT NULL,
+    name       TEXT,
+    side       TEXT NOT NULL CHECK (side IN ('buy','sell')),
+    price      REAL NOT NULL,
+    qty        INTEGER NOT NULL,
+    note       TEXT,
+    created_at TEXT
+);
 CREATE TABLE IF NOT EXISTS market_mood (
     date        TEXT PRIMARY KEY,
     up_count    INTEGER,
@@ -185,6 +196,52 @@ def query_sector_trend(kind: str, days: int = 5) -> List[dict]:
             [kind] + dates,
         ).fetchall()
     return [dict(r) for r in rows]
+
+
+def add_trade(date: str, code: str, name: str, side: str,
+              price: float, qty: int, note: str = "") -> int:
+    now = dt.datetime.now().isoformat(timespec="seconds")
+    with _connect() as conn:
+        cur = conn.execute(
+            "INSERT INTO trades (date, code, name, side, price, qty, note, created_at) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (date, code, name, side, price, qty, note, now),
+        )
+    return int(cur.lastrowid)
+
+
+def delete_trade(tid: int) -> bool:
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM trades WHERE id=?", (tid,))
+    return cur.rowcount > 0
+
+
+def query_trades(limit: int = 30) -> List[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM trades ORDER BY date DESC, id DESC LIMIT ?", (limit,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def positions() -> List[dict]:
+    """由交易记录聚合出当前持仓(净持仓>0)。
+
+    摊薄成本 = (累计买入额 - 累计卖出额) / 净持仓量。v1 简化口径,不计手续费。
+    """
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT code, MAX(name) AS name, "
+            "SUM(CASE WHEN side='buy' THEN qty ELSE -qty END) AS qty, "
+            "SUM(CASE WHEN side='buy' THEN price*qty ELSE -price*qty END) AS cost "
+            "FROM trades GROUP BY code HAVING qty > 0 ORDER BY cost DESC",
+        ).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["avg_cost"] = round(d["cost"] / d["qty"], 3) if d["qty"] else 0.0
+        out.append(d)
+    return out
 
 
 def save_trade_dates(dates: List[str]) -> None:
